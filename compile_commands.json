@@ -1,0 +1,8 @@
+[
+    {
+        "directory": "/home/kunyukz/my_projects/C/AnCE",
+        "command": "/usr/bin/clang -std=c99 -I./engine/src -D_DEBUG -DUNICODE -D_UNICODE -DKEXPORT -D_GNU_SOURCE",
+        "file": "/home/kunyukz/my_projects/C/AnCE/engine/src/main.c"
+    }
+]
+
