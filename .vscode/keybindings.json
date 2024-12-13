@@ -27,5 +27,5 @@
         "key": "shift+alt+right",
         "command": "cursorColumnSelectRight",
         "when": "textInputFocus"
-    },
+    }
 ]

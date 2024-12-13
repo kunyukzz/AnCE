@@ -20,7 +20,7 @@ void shutdown_log() {}
 
 void log_output(log_type type, const char* message, ...)
 {
-    const char* level_strings[6] = { "[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: " };
+    const char* level_strings[6] = { "[ENGINE-FATAL]: ", "[ENGINE-ERROR]: ", "[ENGINE-WARN]: ", "[ENGINE-INFO]: ", "[ENGINE-DEBUG]: ", "[ENGINE-TRACE]: " };
     b8 is_error = type < LOG_TYPE_WARN;
 
     const i16 length = 16000;

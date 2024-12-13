@@ -2,6 +2,7 @@
 
 #if ACPLATFORM_WINDOWS
 
+#include "core/input.h"
 #include "core/logger.h"
 
 #include <stdlib.h>
@@ -12,7 +13,7 @@
 static f64 clock_freq;
 static LARGE_INTEGER start_time;
 
-typedef struct
+typedef struct internal_state
 {
     HINSTANCE h_instance;
     HWND hwnd;
@@ -147,7 +148,7 @@ void platform_console_write(const char* msg, u8 color)
     HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
 
     // FATAL, ERROR, WARN, INFO, DEBUG, TRACE
-    static u8 types[6] = { 64, 4, 6, 2, 1, 8 };
+    static u8 types[6] = { 64, 4, 6, 2, 1, 5 };
     SetConsoleTextAttribute(console_handle, types[color]);
 
     OutputDebugStringA(msg);
@@ -161,7 +162,7 @@ void platform_console_write_error(const char* msg, u8 color)
     HANDLE console_handle = GetStdHandle(STD_ERROR_HANDLE);
 
     // FATAL, ERROR, WARN, INFO, DEBUG, TRACE
-    static u8 types[6] = { 64, 4, 6, 2, 1, 8 };
+    static u8 types[6] = { 64, 4, 6, 2, 1, 5 };
     SetConsoleTextAttribute(console_handle, types[color]);
 
     OutputDebugStringA(msg);
@@ -192,10 +193,10 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         PostQuitMessage(0);
         return 0;
     case WM_SIZE: {
-        RECT r;
-        GetClientRect(hwnd, &r);
-        u32 width = r.right - r.left;
-        u32 height = r.bottom - r, top;
+        //RECT r;
+        //GetClientRect(hwnd, &r);
+        //u32 width = r.right - r.left;
+        //u32 height = r.bottom - r, top;
 
         // TODO: fire window resize event
     }
@@ -205,13 +206,16 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         b8 pressed = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
-        // TODO: input all process button keyboard
+        keys key = (u16)w_param;
+
+        input_process_key(key, pressed);
     }
     break;
     case WM_MOUSEMOVE: {
         i32 x_pos = GET_X_LPARAM(l_param);
         i32 y_pos = GET_Y_LPARAM(l_param);
-        // TODO: input mouse ray position
+
+        input_process_mouse_move(x_pos, y_pos);
     }
     break;
     case WM_MOUSEWHEEL: {
@@ -219,7 +223,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         if (z_delta != 0)
         {
             z_delta = (z_delta < 0) ? -1 : 1;
-            // TODO: input mousewheel processing
+            input_process_mouse_wheel(z_delta);
         }
     }
     break;
@@ -230,7 +234,24 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
     case WM_MBUTTONUP:
     case WM_RBUTTONUP: {
         b8 pressed = msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN;
-        // TODO: input process
+        buttons mouse_button = BUTTON_MAX;
+        switch (msg)
+        {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+            mouse_button = BUTTON_LEFT;
+            break;
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+            mouse_button = BUTTON_MIDDLE;
+            break;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+            mouse_button = BUTTON_RIGHT;
+            break;
+        }
+        if (mouse_button != BUTTON_MAX)
+            input_process_button(mouse_button, pressed);
     }
     break;
     }

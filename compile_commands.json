@@ -1,7 +1,7 @@
 [
     {
         "directory": "/home/kunyukz/my_projects/C/AnCE",
-        "command": "/usr/bin/clang -std=c99 -I./engine/src -D_DEBUG -DUNICODE -D_UNICODE -DKEXPORT -D_GNU_SOURCE",
+        "command": "/usr/bin/clang -std=c99 -I./engine/src -I/home/kunyukz/vulkan/1.3.231.1/x86_64/include -D_DEBUG -DUNICODE -D_UNICODE -DKEXPORT -D_GNU_SOURCE",
         "file": "/home/kunyukz/my_projects/C/AnCE/engine/src/main.c"
     }
 ]

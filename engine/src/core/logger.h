@@ -13,14 +13,14 @@
     #define LOG_TRACE_ENABLED 0
 #endif //ACRELEASE == 1
 
-typedef enum
+typedef enum log_type
 {
     LOG_TYPE_FATAL = 0,
-    LOG_TYPE_ERROR = 1,
-    LOG_TYPE_WARN = 2,
-    LOG_TYPE_INFO = 3,
-    LOG_TYPE_DEBUG = 4,
-    LOG_TYPE_TRACE = 5,
+    LOG_TYPE_ERROR,
+    LOG_TYPE_WARN,
+    LOG_TYPE_INFO,
+    LOG_TYPE_DEBUG,
+    LOG_TYPE_TRACE,
 } log_type;
 
 b8 init_log();
