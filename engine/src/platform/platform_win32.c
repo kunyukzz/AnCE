@@ -2,12 +2,17 @@
 
 #if ACPLATFORM_WINDOWS
 
+#include "container/dyn_array.h"
 #include "core/input.h"
 #include "core/logger.h"
 
 #include <stdlib.h>
 #include <windows.h>
 #include <windowsx.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_win32.h>
+#include "renderer/vulkan/vulkan_type.inl"
 
 // clock
 static f64 clock_freq;
@@ -17,6 +22,7 @@ typedef struct internal_state
 {
     HINSTANCE h_instance;
     HWND hwnd;
+    VkSurfaceKHR surface;
 ) internal_state;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
@@ -180,6 +186,30 @@ f64 platform_get_absolute_time()
 
 void platform_sleep(u64 ms) { Sleep(ms); }
 
+void plaplatform_get_required_extension_name(const char*** names_dyn_array)
+{
+    ac_dyn_array_push_t(*names_dyn_array, &"VK_KHR_win32_surface");
+}
+
+b8 platform_create_vulkan_surface(platform_state* plat_state, vulkan_context* context)
+{
+    internal_state* state = (internal_state*)plat_state->internal_state;
+
+    VkWin32SurfaceCreateInfoKHR create_info = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+    create_info.hinstance = state->hinstance;
+    create_info.hwnd = state->hwnd;
+
+    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, context->allocator, &state->surface);
+    if (result != VK_SUCCESS)
+    {
+        ACFATAL("Vulkan surface creation failed");
+        return FALSE
+    }
+
+    context->surface = state->surface;
+    return TRUE;
+}
+
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param)
 {
     switch (msg)
@@ -193,10 +223,10 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         PostQuitMessage(0);
         return 0;
     case WM_SIZE: {
-        //RECT r;
-        //GetClientRect(hwnd, &r);
-        //u32 width = r.right - r.left;
-        //u32 height = r.bottom - r, top;
+        // RECT r;
+        // GetClientRect(hwnd, &r);
+        // u32 width = r.right - r.left;
+        // u32 height = r.bottom - r, top;
 
         // TODO: fire window resize event
     }

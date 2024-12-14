@@ -42,12 +42,12 @@ b8 application_create(game* game_inst)
     init_log();
     input_initialize();
 
-    ACFATAL("Test Message: %f", 20.0f);
-    ACERROR("Test Message: %f", 20.0f);
-    ACWARN("Test Message: %f", 20.0f);
-    ACINFO("Test Message: %f", 20.0f);
-    ACDEBUG("Test Message: %f", 20.0f);
-    ACTRACE("Test Message: %f", 20.0f);
+    //ACFATAL("Test Message: %f", 20.0f);
+    //ACERROR("Test Message: %f", 20.0f);
+    //ACWARN("Test Message: %f", 20.0f);
+    //ACINFO("Test Message: %f", 20.0f);
+    //ACDEBUG("Test Message: %f", 20.0f);
+    //ACTRACE("Test Message: %f", 20.0f);
 
     app_state.is_running = TRUE;
     app_state.is_suspend = FALSE;

@@ -2,7 +2,8 @@
 
 #if ACPLATFORM_LINUX
 
-//#include "core/event.h"
+// #include "core/event.h"
+#include "container/dyn_array.h"
 #include "core/input.h"
 #include "core/logger.h"
 
@@ -23,6 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define VK_USE_PLATFORM_XCB_KHR
+#include "renderer/vulkan/vulkan_type.inl"
+#include <vulkan/vulkan.h>
+
 typedef struct internal_state
 {
     Display* display;
@@ -31,6 +36,7 @@ typedef struct internal_state
     xcb_screen_t screen;
     xcb_atom_t wm_protocol;
     xcb_atom_t wm_delete_win;
+    VkSurfaceKHR surface;
 } internal_state;
 
 keys translate_keycode(u32 x_keycode);
@@ -42,7 +48,7 @@ b8 platform_startup(platform_state* plat_state, const char* app_name, i32 x, i32
 
     // Connect to X server
     state->display = XOpenDisplay(NULL);
-    //XAutoRepeatOff(state->display);
+    // XAutoRepeatOff(state->display);
 
     // receive connection from display
     state->connection = XGetXCBConnection(state->display);
@@ -121,7 +127,7 @@ b8 platform_startup(platform_state* plat_state, const char* app_name, i32 x, i32
 void platform_shutdown(platform_state* plat_state)
 {
     internal_state* state = (internal_state*)plat_state->internal_state;
-    //XAutoRepeatOn(state->display);
+    // XAutoRepeatOn(state->display);
     xcb_destroy_window(state->connection, state->window);
 }
 
@@ -137,7 +143,8 @@ b8 platform_push_msg(platform_state* plat_state)
     while (event != 0)
     {
         event = xcb_poll_for_event(state->connection);
-        if (event == 0) break;
+        if (event == 0)
+            break;
 
         // WARN:
         // check with bitwise operation. idk why X11 server using this.
@@ -146,7 +153,7 @@ b8 platform_push_msg(platform_state* plat_state)
         {
         case XCB_KEY_PRESS:
         case XCB_KEY_RELEASE: {
-            xcb_key_press_event_t *kb_event = (xcb_key_press_event_t *)event;
+            xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
             b8 pressed = event->response_type == XCB_KEY_PRESS;
             xcb_keycode_t code = kb_event->detail;
             KeySym key_sym = XkbKeycodeToKeysym(state->display, (KeyCode)code, 0, code & ShiftMask ? 1 : 0);
@@ -156,7 +163,7 @@ b8 platform_push_msg(platform_state* plat_state)
         break;
         case XCB_BUTTON_PRESS:
         case XCB_BUTTON_RELEASE: {
-            xcb_button_press_event_t* mouse_event = (xcb_button_press_event_t *)event;
+            xcb_button_press_event_t* mouse_event = (xcb_button_press_event_t*)event;
             b8 pressed = event->response_type == XCB_BUTTON_PRESS;
             buttons mouse_button = BUTTON_MAX;
             switch (mouse_event->detail)
@@ -178,16 +185,17 @@ b8 platform_push_msg(platform_state* plat_state)
         }
         break;
         case XCB_MOTION_NOTIFY: {
-            xcb_motion_notify_event_t* move_event = (xcb_motion_notify_event_t *)event;
+            xcb_motion_notify_event_t* move_event = (xcb_motion_notify_event_t*)event;
             // Pass over to the input subsystem.
             input_process_mouse_move(move_event->event_x, move_event->event_y);
         }
         break;
         case XCB_CONFIGURE_NOTIFY: {
             // TODO:implementing window resize
-        }break;
+        }
+        break;
         case XCB_CLIENT_MESSAGE: {
-            cm = (xcb_client_message_event_t *)event;
+            cm = (xcb_client_message_event_t*)event;
 
             if (cm->data.data32[0] == state->wm_delete_win)
                 quit_flag = TRUE;
@@ -260,6 +268,30 @@ void platform_sleep(u64 ms)
     }
     usleep((ms % 1000) * 1000)
 #endif
+}
+
+void platform_get_required_extension_name(const char*** names_dyn_array)
+{
+    ac_dyn_array_push_t(*names_dyn_array, &"VK_KHR_xcb_surface");
+}
+
+b8 platform_create_vulkan_surface(struct platform_state* plat_state, struct vulkan_context* context)
+{
+    internal_state* state = (internal_state*)plat_state->internal_state;
+
+    VkXcbSurfaceCreateInfoKHR create_info = { VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR };
+    create_info.connection = state->connection;
+    create_info.window = state->window;
+
+    VkResult result = vkCreateXcbSurfaceKHR(context->instance, &create_info, context->allocator, &state->surface);
+    if (result != VK_SUCCESS)
+    {
+        ACFATAL("Vulkan surface creation failed");
+        return FALSE;
+    }
+
+    context->surface = state->surface;
+    return TRUE;
 }
 
 keys translate_keycode(u32 x_keycode)

@@ -32,7 +32,7 @@ ACAPI void report_assert_failure(const char* expression, const char* msg, const 
         }                                                                                                                                  \
         else                                                                                                                               \
         {                                                                                                                                  \
-            report_assertion_failure(#expr, msg, __FILE__, __LINE__);                                                                      \
+            report_assert_failure(#expr, msg, __FILE__, __LINE__);                                                                      \
             debugBreak();                                                                                                                  \
         }                                                                                                                                  \
     }
