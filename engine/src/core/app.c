@@ -29,6 +29,7 @@ static application_state app_state;
 // Event handler
 b8 application_on_event(u16 code, void* sender, void* listener, event_context context);
 b8 application_on_key(u16 code, void* sender, void* listener, event_context context);
+b8 application_on_resized(u16 code, void* sender, void* listener, event_context context);
 
 b8 application_create(game* game_inst)
 {
@@ -42,12 +43,12 @@ b8 application_create(game* game_inst)
     init_log();
     input_initialize();
 
-    //ACFATAL("Test Message: %f", 20.0f);
-    //ACERROR("Test Message: %f", 20.0f);
-    //ACWARN("Test Message: %f", 20.0f);
-    //ACINFO("Test Message: %f", 20.0f);
-    //ACDEBUG("Test Message: %f", 20.0f);
-    //ACTRACE("Test Message: %f", 20.0f);
+    // ACFATAL("Test Message: %f", 20.0f);
+    // ACERROR("Test Message: %f", 20.0f);
+    // ACWARN("Test Message: %f", 20.0f);
+    // ACINFO("Test Message: %f", 20.0f);
+    // ACDEBUG("Test Message: %f", 20.0f);
+    // ACTRACE("Test Message: %f", 20.0f);
 
     app_state.is_running = TRUE;
     app_state.is_suspend = FALSE;
@@ -61,6 +62,7 @@ b8 application_create(game* game_inst)
     ac_event_register_t(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
     ac_event_register_t(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     ac_event_register_t(EVENT_CODE_KEY_RELEASE, 0, application_on_key);
+    ac_event_register_t(EVENT_CODE_RESIZED, 0, application_on_resized);
 
     if (!platform_startup(&app_state.platform,
                           game_inst->app_config.title,
@@ -157,12 +159,19 @@ b8 application_run()
     ac_event_unregister_t(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
     ac_event_unregister_t(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     ac_event_unregister_t(EVENT_CODE_KEY_RELEASE, 0, application_on_key);
+    ac_event_unregister_t(EVENT_CODE_RESIZED, 0, application_on_resized);
     event_shutdown();
     input_shutdown();
     renderer_shutdown();
 
     platform_shutdown(&app_state.platform);
     return TRUE;
+}
+
+void application_get_framebuffer_size(u32* width, u32* height)
+{
+    *width = app_state.width;
+    *height = app_state.height;
 }
 
 b8 application_on_event(u16 code, void* sender, void* listener, event_context context)
@@ -213,5 +222,42 @@ b8 application_on_key(u16 code, void* sender, void* listener, event_context cont
         }
     }
 
+    return FALSE;
+}
+
+b8 application_on_resized(u16 code, void* sender, void* listener, event_context context)
+{
+    if (code == EVENT_CODE_RESIZED)
+    {
+        u16 width = context.data.u16[0];
+        u16 height = context.data.u16[1];
+
+        if (width != app_state.width || height != app_state.height)
+        {
+            app_state.width = width;
+            app_state.height = height;
+
+            ACDEBUG("Window resize: %i %i", width, height);
+
+            if (width == 0 || height == 0)
+            {
+                ACINFO("Window minimized. Suspend application");
+                app_state.is_suspend = TRUE;
+                return TRUE;
+            }
+            else
+            {
+                if (app_state.is_suspend)
+                {
+                    ACINFO("Window restored. Resume application");
+                    app_state.is_suspend = FALSE;
+                }
+                app_state.game_inst->on_resize(app_state.game_inst, width, height);
+                renderer_on_resized(width, height);
+            }
+        }
+    }
+
+    // purposely not handle to allow other listener to perform this.
     return FALSE;
 }

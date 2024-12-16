@@ -21,9 +21,9 @@ typedef int b32;
 typedef char b8;
 
 #if defined(__clang__) || defined(__gcc__)
-    #define STATIC_ASSERT _Static_assert
+#define STATIC_ASSERT _Static_assert
 #else
-    #define STATIC_ASSERT static_assert
+#define STATIC_ASSERT static_assert
 #endif
 
 // Ensure all types are of the correct size.
@@ -42,17 +42,17 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define FALSE 0
 
 // Platform detection
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) 
-    #define ACPLATFORM_WINDOWS 1
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
+#define ACPLATFORM_WINDOWS 1
 #ifndef _WIN64
-    #error "64-bit is required on Windows!"
+#error "64-bit is required on Windows!"
 #endif
 #elif defined(__linux__) || defined(__gnu_linux__)
 
 // Linux OS
 #define ACPLATFORM_LINUX 1
 #if defined(__ANDROID__)
-    #define ACPLATFORM_ANDROID 1
+#define ACPLATFORM_ANDROID 1
 #endif
 #elif defined(__unix__)
 
@@ -87,17 +87,19 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #ifdef ACEXPORT
 // Exports
 #ifdef _MSC_VER
-    #define ACAPI __declspec(dllexport)
+#define ACAPI __declspec(dllexport)
 #else
-    #define ACAPI __attribute__((visibility("default")))
+#define ACAPI __attribute__((visibility("default")))
 #endif
 #else
 
 // Imports
 #ifdef _MSC_VER
-    #define ACAPI __declspec(dllimport)
+#define ACAPI __declspec(dllimport)
 #else
-    #define ACAPI
+#define ACAPI
 #endif
 
 #endif
+
+#define ACCLAMP(value, min, max) (value <= min) ? min : (value >= max) ? max : value

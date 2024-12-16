@@ -39,10 +39,125 @@ b8 vulkan_device_create(vulkan_context* context)
     if (!select_physical_device(context))
         return FALSE;
 
+    ACINFO("Creating logical devices...");
+
+    // return TRUE;
+
+    b8 present_share_graphic_queue = context->device.graphics_queue_index == context->device.present_queue_index;
+    b8 transfer_share_graphic_queue = context->device.graphics_queue_index == context->device.transfer_queue_index;
+    u32 index_count = 1;
+    if (!present_share_graphic_queue)
+        index_count++;
+    if (!transfer_share_graphic_queue)
+        index_count++;
+    u32 indices[index_count];
+    u8 index = 0;
+    indices[index++] = context->device.graphics_queue_index;
+
+    if (!present_share_graphic_queue)
+        indices[index++] = context->device.present_queue_index;
+    if (!transfer_share_graphic_queue)
+        indices[index++] = context->device.transfer_queue_index;
+
+    VkDeviceQueueCreateInfo queue_create_infos[index_count];
+    for (u32 i = 0; i < index_count; ++i)
+    {
+        queue_create_infos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_infos[i].queueFamilyIndex = indices[i];
+        queue_create_infos[i].queueCount = 1;
+
+        // NOTE: this was for multithreading
+        // if (indices[i] == context->device.graphics_queue_index)
+        //     queue_create_infos[i].queueCount = 2;
+
+        queue_create_infos[i].flags = 0;
+        queue_create_infos[i].pNext = 0;
+        f32 queue_priority = 1.0f;
+        queue_create_infos[i].pQueuePriorities = &queue_priority;
+    }
+
+    // requesting device feature
+    VkPhysicalDeviceFeatures device_features = {};
+    // device_features.samplerAnisotropy = VK_TRUE; // TEST: idk if i needed this.
+
+    VkDeviceCreateInfo device_create_info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    device_create_info.queueCreateInfoCount = index_count;
+    device_create_info.pQueueCreateInfos = queue_create_infos;
+    device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.enabledExtensionCount = 1;
+    const char* extension_names = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    device_create_info.ppEnabledExtensionNames = &extension_names;
+
+    // ignored. so pass nothing
+    device_create_info.enabledLayerCount = 0;
+    device_create_info.ppEnabledLayerNames = 0;
+
+    // create device
+    VK_CHECK(vkCreateDevice(context->device.physical_device, &device_create_info, context->allocator, &context->device.logical_device));
+    ACINFO("Logical Device Created");
+
+    // get queue
+    vkGetDeviceQueue(context->device.logical_device, context->device.graphics_queue_index, 0, &context->device.graphics_queue);
+    vkGetDeviceQueue(context->device.logical_device, context->device.present_queue_index, 0, &context->device.present_queue);
+    vkGetDeviceQueue(context->device.logical_device, context->device.transfer_queue_index, 0, &context->device.transfer_queue);
+    ACINFO("Queues obtained");
+
+    // create command pool for graphics queue
+    VkCommandPoolCreateInfo pool_create_info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    pool_create_info.queueFamilyIndex = context->device.graphics_queue_index;
+    pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VK_CHECK(vkCreateCommandPool(context->device.logical_device, &pool_create_info, context->allocator, &context->device.graphics_command_pool));
+    ACINFO("Graphics command pool created");
+
     return TRUE;
 }
 
-void vulkan_device_destroy(vulkan_context* context) {}
+void vulkan_device_destroy(vulkan_context* context)
+{
+    // unset queueueueueueeu
+    context->device.graphics_queue = 0;
+    context->device.present_queue = 0;
+    context->device.transfer_queue = 0;
+
+    ACINFO("Destroy command pool...");
+    vkDestroyCommandPool(context->device.logical_device, context->device.graphics_command_pool, context->allocator);
+
+    // destroy logical device
+    ACINFO("Destroy logical device...");
+    if (context->device.logical_device)
+    {
+        vkDestroyDevice(context->device.logical_device, context->allocator);
+        context->device.logical_device = 0;
+    }
+
+    // of course physical device not destroyed, right........
+    ACINFO("Releasing physical device resources...");
+    context->device.physical_device = 0;
+
+    if (context->device.swapchain_support.formats)
+    {
+        ac_free_t(context->device.swapchain_support.formats,
+                  sizeof(VkSurfaceFormatKHR) * context->device.swapchain_support.format_count,
+                  MEMTAG_RENDERER);
+        context->device.swapchain_support.formats = 0;
+        context->device.swapchain_support.format_count = 0;
+    }
+
+    if (context->device.swapchain_support.present_modes)
+    {
+        ac_free_t(context->device.swapchain_support.present_modes,
+                  sizeof(VkPresentModeKHR) * context->device.swapchain_support.present_mode_count,
+                  MEMTAG_RENDERER);
+        context->device.swapchain_support.present_modes = 0;
+        context->device.swapchain_support.present_mode_count = 0;
+    }
+
+    ac_zero_memory_t(&context->device.swapchain_support.capabilities, sizeof(context->device.swapchain_support.capabilities));
+
+    context->device.graphics_queue_index = -1;
+    context->device.present_queue_index = -1;
+    context->device.transfer_queue_index = -1;
+}
 
 void vulkan_device_query_swapchain_support(VkPhysicalDevice physical_device,
                                            VkSurfaceKHR surface,
@@ -71,6 +186,31 @@ void vulkan_device_query_swapchain_support(VkPhysicalDevice physical_device,
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
           physical_device, surface, &out_support_info->present_mode_count, out_support_info->present_modes));
     }
+}
+
+b8 vulkan_device_detect_depth_format(vulkan_device* device)
+{
+    const u64 candidate_count = 3;
+    VkFormat candidates[3] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+
+    u32 flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    for (u64 i = 0; i < candidate_count; ++i)
+    {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(device->physical_device, candidates[i], &properties);
+        if ((properties.linearTilingFeatures & flags) == flags)
+        {
+            device->depth_format = candidates[i];
+            return TRUE;
+        }
+        else if ((properties.optimalTilingFeatures & flags) == flags)
+        {
+            device->depth_format = candidates[i];
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
 b8 select_physical_device(vulkan_context* context)
@@ -106,7 +246,7 @@ b8 select_physical_device(vulkan_context* context)
         // requirement.compute = TRUE;
         requirement.sampler_anisotrophy = TRUE;
 
-        requirement.discrete_gpu = TRUE; // HACK: I'm cheating in this line. the correct value was TRUE
+        requirement.discrete_gpu = FALSE; // HACK: I'm cheating in this line. the correct value was TRUE
         requirement.device_extension_name = ac_dyn_array_create_t(const char*);
         ac_dyn_array_push_t(requirement.device_extension_name, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
@@ -173,9 +313,6 @@ b8 select_physical_device(vulkan_context* context)
     if (!context->device.physical_device)
     {
         ACERROR("No physical device found to meet the requirement.");
-
-        // HACK: I'm cheating here!!!!!
-        // return TRUE;
         return FALSE; // correct version
     }
 
@@ -204,18 +341,18 @@ b8 physical_device_meet_requirement(VkPhysicalDevice device,
             return FALSE;
         }
     }
-    else
-    {
-        ACINFO("Integrated GPU found. Proceeding with the check...");
-        return TRUE;
-    }
+    // else
+    // {
+    //     ACINFO("Integrated GPU found. Proceeding with the check...");
+    //     return TRUE;
+    // }
 
     u32 queue_fam_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_fam_count, 0);
     VkQueueFamilyProperties queue_fam[queue_fam_count];
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_fam_count, queue_fam);
 
-    ACINFO("Graphics | Present | Compute | Transfer | Name");
+    ACTRACE("Graphics | Present | Compute | Transfer | Name");
     u8 min_transfer_score = 255;
     for (u32 i = 0; i < queue_fam_count; ++i)
     {
@@ -252,12 +389,12 @@ b8 physical_device_meet_requirement(VkPhysicalDevice device,
         }
     }
 
-    ACINFO("        %d |        %d |        %d |        %d | %s",
-           out_queue_family_info->graphics_family_index != -1,
-           out_queue_family_info->present_family_index != -1,
-           out_queue_family_info->compute_family_index != -1,
-           out_queue_family_info->transfer_family_index != -1,
-           properties->deviceName);
+    ACTRACE("        %d |        %d |        %d |        %d | %s",
+            out_queue_family_info->graphics_family_index != -1,
+            out_queue_family_info->present_family_index != -1,
+            out_queue_family_info->compute_family_index != -1,
+            out_queue_family_info->transfer_family_index != -1,
+            properties->deviceName);
 
     if ((!requirement->graphics || (requirement->graphics && out_queue_family_info->graphics_family_index != -1)) &&
         (!requirement->present || (requirement->present && out_queue_family_info->present_family_index != -1)) &&
@@ -324,7 +461,7 @@ b8 physical_device_meet_requirement(VkPhysicalDevice device,
         }
         if (requirement->sampler_anisotrophy && !feature->samplerAnisotropy)
         {
-            ACINFO("Device does not support samplerAisothropy. Skip");
+            ACINFO("Device does not support samplerAnisothropy. Skip");
             return FALSE;
         }
         return TRUE;

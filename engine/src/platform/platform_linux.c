@@ -2,8 +2,8 @@
 
 #if ACPLATFORM_LINUX
 
-// #include "core/event.h"
 #include "container/dyn_array.h"
+#include "core/event.h"
 #include "core/input.h"
 #include "core/logger.h"
 
@@ -191,7 +191,12 @@ b8 platform_push_msg(platform_state* plat_state)
         }
         break;
         case XCB_CONFIGURE_NOTIFY: {
-            // TODO:implementing window resize
+            xcb_configure_notify_event_t* configure_event = (xcb_configure_notify_event_t*)event;
+
+            event_context context;
+            context.data.u16[0] = configure_event->width;
+            context.data.u16[1] = configure_event->height;
+            ac_event_fire_t(EVENT_CODE_RESIZED, 0, context);
         }
         break;
         case XCB_CLIENT_MESSAGE: {

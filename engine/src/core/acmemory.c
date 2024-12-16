@@ -13,7 +13,7 @@ struct mem_stats
     u64 tagged_allocation[MEMTAG_MAX_TAGS];
 };
 
-static const char* memtag_string[MEMTAG_MAX_TAGS] = { "UNKNOWN", "ARRAY",       "DARRAY", "DICT",        "RING_QUEUE", "BST",
+static const char* memtag_string[MEMTAG_MAX_TAGS] = { "UNKNOWN", "ARRAY",       "DYN_ARRAY", "DICT",        "RING_QUEUE", "BST",
                                                       "STRING",  "APPLICATION", "JOB",    "TEXTURE",     "MAT_INST",   "RENDERER",
                                                       "GAME",    "TRANSFORM",   "ENTITY", "ENTITY_NODE", "SCENE" };
 

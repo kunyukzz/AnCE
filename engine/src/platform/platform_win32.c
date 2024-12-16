@@ -3,6 +3,7 @@
 #if ACPLATFORM_WINDOWS
 
 #include "container/dyn_array.h"
+#include "core/event.h"
 #include "core/input.h"
 #include "core/logger.h"
 
@@ -218,17 +219,22 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         return 1;
     case WM_CLOSE:
         // TODO: Fire an event for quit application
-        return 0;
+        event_context data = {};
+        ac_event_fire_t(EVENT_CODE_APPLICATION_QUIT, 0, data);
+        return TRUE;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
     case WM_SIZE: {
-        // RECT r;
-        // GetClientRect(hwnd, &r);
-        // u32 width = r.right - r.left;
-        // u32 height = r.bottom - r, top;
+        RECT r;
+        GetClientRect(hwnd, &r);
+        u32 width = r.right - r.left;
+        u32 height = r.bottom - r, top;
 
-        // TODO: fire window resize event
+        event_context context;
+        context.data.u16[0] = (u16)width;
+        context.data.uu16[1] = (u16)height;
+        ac_event_fire_t(EVENT_CODE_RESIZED, 0, context);
     }
     break;
     case WM_KEYDOWN:
